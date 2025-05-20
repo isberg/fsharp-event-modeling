@@ -4,11 +4,11 @@
     <TargetFramework>net7.0</TargetFramework>
     <RootNamespace>event_modeling</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>0.1.0</Version>
+    <Version>0.2.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="CommandPattern.fs" />
   </ItemGroup>
 
 </Project>
