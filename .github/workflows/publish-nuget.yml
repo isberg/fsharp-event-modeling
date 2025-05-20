@@ -1,0 +1,49 @@
+name: Publish NuGet to GitHub Packages
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.x'
+
+      - name: Authenticate GitHub Packages
+        run: |
+          dotnet nuget add source \
+            --username ${{ github.actor }} \
+            --password "${{ secrets.NUGET_API_KEY }}" \
+            --store-password-in-clear-text \
+            --name github \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build & Pack
+        run: |
+          dotnet build --configuration Release
+          dotnet pack event-modeling.fsproj \
+            --configuration Release \
+            --no-build \
+            --output ./nupkgs
+
+      - name: Push to GitHub Packages
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          for pkg in nupkgs/*.nupkg; do
+            dotnet nuget push "$pkg" \
+              --api-key "$NUGET_KEY" \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+              --skip-duplicate
+          done
+
