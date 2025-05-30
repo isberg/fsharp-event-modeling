@@ -1,41 +1,56 @@
 module GenericResource
 
-open System.Text.Json
+open Service
 open Suave
 open Suave.Filters
 open Suave.Operators
 open Suave.Successful
 open Suave.RequestErrors
 open Suave.Writers
-open Storage
-open Service
+open System.Text.Json
+open System.Text.Json.Serialization
+open FsCodec.SystemTextJson
+
+    
+// Shared JSON options with F# DU support
+let jsonOptions = 
+    JsonFSharpOptions
+        .Default()
+        .WithUnionExternalTag()
+        .WithUnionUnwrapFieldlessTags()
+        .WithUnionTagCaseInsensitive()
+        .ToJsonSerializerOptions()
+
+/// JSON serialization helper
+let toJson (data: 'T) : WebPart =
+    Writers.setMimeType "application/json; charset=utf-8"
+    >=> OK (JsonSerializer.Serialize(data, jsonOptions))
+
+let deserialize<'TValue> : byte array -> Result<'TValue,string> = fun bytes ->
+    try
+        Ok <| JsonSerializer.Deserialize<'TValue>(bytes, jsonOptions)
+    with ex -> Error ex.Message
 
 /// Configure routes for a resource identified by 'idPath' (e.g. "counters/%s")
 let configure<'State,'Command,'Event>
-  (parseId: string -> StreamId)
-  (parseCmd: JsonDocument -> 'Command)
-  (toJson: 'State -> WebPart)
+  (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
   (service: Service<'State,'Command,'Event>)
-  (idFormat: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
-  : WebPart =
-  choose [
-    // GET /{resource}/{id}
-    GET >=> pathScan idFormat (fun idStr -> fun ctx -> async {
-      let id = parseId idStr
-      let! state = service.GetState id
-      return! toJson state ctx
-    })
-    // POST /{resource}/{id}
-    POST >=> pathScan idFormat (fun idStr -> fun ctx -> async {
-      let id = parseId idStr
-      // parse JSON
-      let body = System.Text.Encoding.UTF8.GetString ctx.request.rawForm
-      use doc = JsonDocument.Parse(body)
-      let cmd = parseCmd doc
-      try
-        let! newState = service.Transact id cmd
-        return! toJson newState ctx
-      with ex -> return! CONFLICT ex.Message ctx
-    })
-  ]
-
+  : WebPart<HttpContext> =
+      choose [
+        // GET /{resource}/{id}
+        GET >=> pathScan path (fun id ctx -> async {
+          let! state = service.Read id
+          return! toJson state ctx
+        })
+        // POST /{resource}/{id}
+        POST >=> pathScan path (fun id ctx -> async {
+            match deserialize<'Command> ctx.request.rawForm with
+            | Error msg -> return! BAD_REQUEST msg ctx
+            | Ok cmd ->
+                try
+                    do! service.Execute id cmd
+                    let! state = service.Read id
+                    return! (toJson state) ctx
+                with ex -> return! CONFLICT ex.Message ctx
+        })
+      ]
