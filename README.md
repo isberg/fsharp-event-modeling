@@ -1,5 +1,12 @@
 # fsharp-event-modeling
 
+The intention of this library is to make proptotyping in F# using Event Storming, Event Modeling and Event Sourcing easier. Please check https://eventmodeling.org/posts/event-modeling-cheatsheet/ before using the library. :-)
+
+## Recommended further reading
+- https://www.eventstorming.com/
+- https://eventmodeling.org/
+- https://gregfyoung.wordpress.com/tag/event-sourcing/
+
 ## Example Usage
 
 Model your domain aggregate with types for state, command and event as well as initial state, command handler and folder, then wrap these up in the `CommandPattern.Decider` type.
