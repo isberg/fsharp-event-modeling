@@ -5,6 +5,7 @@ type Service<'State,'Command,'Event>
         ( resolve: string -> Equinox.Decider<'Event, 'State>
         , decide : 'Command -> 'State -> 'Event array
         , subscribe : (string -> 'Event list -> unit) -> System.IDisposable
+        , load : string -> 'Event list
         ) =
 
     member _.Execute : string -> 'Command -> Async<unit> = fun instanceId command ->
@@ -15,6 +16,9 @@ type Service<'State,'Command,'Event>
     
     member _.Subscribe : (string -> 'Event list -> unit) -> System.IDisposable = 
         subscribe
+
+    member _.Load : string -> 'Event list =
+        load
 
 open Serilog
     
@@ -35,11 +39,13 @@ let createService<'State,'Command,'Event when 'Event :> TypeShape.UnionContract.
                 fun struct (streamName, events) ->
                     callback (FsCodec.StreamName.toString streamName) (events |> Array.map codec.Decode |> Array.choose (function | ValueSome v -> Some v | ValueNone -> None) |> Array.toList)
             )
+        let load = store.Load >> Array.map codec.Decode >> Array.choose (function | ValueSome v -> Some v | ValueNone -> None) >> Array.toList
             
         Service
             ( FsCodec.StreamId.gen id >> Equinox.Decider.forStream log cat
             , fun cmd state -> decider.decide cmd state |> List.toArray
             , subscribe
+            , load
             ) 
 
 
