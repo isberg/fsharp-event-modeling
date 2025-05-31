@@ -33,10 +33,22 @@ let deserialize<'TValue> : byte array -> Result<'TValue,string> = fun bytes ->
 
 /// Configure routes for a resource identified by 'idPath' (e.g. "counters/%s")
 let configure<'State,'Command,'Event>
+  (category : string)
   (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
+  (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
   (service: Service<'State,'Command,'Event>)
+  (projections: (string * ViewPattern.Projection<_,'Event>) list)
   : WebPart<HttpContext> =
       choose [
+        GET >=> pathScan viewPath (fun (id,view) ctx -> async {
+            let key = $"{category}-{id}" 
+            let history = service.Load key
+            match projections |> List.filter (fun (n,p) -> n=view) with
+            | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
+            | (_, projection) :: ps -> 
+                let view = ViewPattern.hydrate projection history
+                return! (toJson view) ctx      
+        })
         // GET /{resource}/{id}
         GET >=> pathScan path (fun id ctx -> async {
           let! state = service.Read id
