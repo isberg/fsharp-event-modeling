@@ -1,14 +1,20 @@
 module Service
 
-type Service<'State,'Command,'Event> internal (resolve: string -> Equinox.Decider<'Event, 'State>, decide : 'Command -> 'State -> 'Event array) =
+type Service<'State,'Command,'Event> 
+    internal 
+        ( resolve: string -> Equinox.Decider<'Event, 'State>
+        , decide : 'Command -> 'State -> 'Event array
+        , subscribe : (string -> 'Event list -> unit) -> System.IDisposable
+        ) =
 
     member _.Execute : string -> 'Command -> Async<unit> = fun instanceId command ->
         (resolve instanceId).Transact <| decide command
         
     member _.Read instanceId : Async<'State> =
         (resolve instanceId).Query id
-
-let private streamId = FsCodec.StreamId.gen id
+    
+    member _.Subscribe : (string -> 'Event list -> unit) -> System.IDisposable = 
+        subscribe
 
 open Serilog
     
@@ -24,6 +30,16 @@ let createService<'State,'Command,'Event when 'Event :> TypeShape.UnionContract.
         let cat 
             : Equinox.Category<'Event,'State,unit> 
             = Equinox.MemoryStore.MemoryStoreCategory(store, categoryName, codec, Array.fold decider.evolve, decider.initial)
-        
-        Service(streamId >> Equinox.Decider.forStream log cat, fun cmd state -> decider.decide cmd state |> List.toArray) 
+        let subscribe : (string -> 'Event list -> unit) -> System.IDisposable = fun callback ->
+            store.Committed.Subscribe(
+                fun struct (streamName, events) ->
+                    callback (FsCodec.StreamName.toString streamName) (events |> Array.map codec.Decode |> Array.choose (function | ValueSome v -> Some v | ValueNone -> None) |> Array.toList)
+            )
+            
+        Service
+            ( FsCodec.StreamId.gen id >> Equinox.Decider.forStream log cat
+            , fun cmd state -> decider.decide cmd state |> List.toArray
+            , subscribe
+            ) 
+
 
