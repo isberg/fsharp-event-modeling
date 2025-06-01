@@ -41,7 +41,7 @@ let configure<'State,'Command,'Event>
   : WebPart<HttpContext> =
       choose [
         GET >=> pathScan viewPath (fun (id,view) ctx -> async {
-            let key = $"{category}-{id}" 
+            let key = FsCodec.StreamName.compose category [| id |] 
             let history = service.Load key
             match projections |> List.filter (fun (n,p) -> n=view) with
             | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
