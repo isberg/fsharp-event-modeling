@@ -4,12 +4,13 @@
     <TargetFramework>net7.0</TargetFramework>
     <RootNamespace>event_modeling</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>0.12.0</Version>
+    <Version>0.13.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="CommandPattern.fs" />
     <Compile Include="ViewPattern.fs" />
+    <Compile Include="AutomationPattern.fs" />
     <Compile Include="Service.fs" />
     <Compile Include="GenericResource.fs" />
 
