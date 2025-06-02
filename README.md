@@ -55,9 +55,16 @@ type Decider<'State,'Command,'Event> = {
 ```fsharp
 [<EntryPoint>]
 let main _ =
-    let service = Service.createService counterDecider "Counter"
-    let _ : System.IDisposable = service.Subscribe (fun name events -> printfn "%A" (name, events))
-    let app = GenericResource.configure "/counters/%s" service
+    let service = Service.createService counterDecider "Counter" None
+    let _ : System.IDisposable =
+        service.Subscribe (fun name events -> printfn "%A" (name, events))
+    let app =
+        GenericResource.configure
+            "Counter"
+            "/counters/%s"
+            "/counters/%s/%s"
+            service
+            []
     Suave.Web.startWebServer Suave.Web.defaultConfig app
     0
 ```
