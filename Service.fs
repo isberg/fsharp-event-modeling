@@ -21,10 +21,17 @@ type Service<'State,'Command,'Event>
         load
 
 open Serilog
+open TranslationPattern
     
-let createService<'View,'State,'Command,'Event when 'Event :> TypeShape.UnionContract.IUnionContract>
-    : CommandPattern.Decider<'State,'Command,'Event> -> string -> AutomationPattern.Automation<'View,'State,'Event,'Command> option -> Service<'State,'Command,'Event> 
-    = fun decider categoryName automation ->
+let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent
+    when 'Event :> TypeShape.UnionContract.IUnionContract
+    and 'TEvent :> TypeShape.UnionContract.IUnionContract>
+    : CommandPattern.Decider<'State,'Command,'Event>
+      -> string
+      -> AutomationPattern.Automation<'View,'State,'Event,'Command> option
+      -> (Translator<'Event,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
+      -> Service<'State,'Command,'Event>
+    = fun decider categoryName automation translation ->
         let store : Equinox.MemoryStore.VolatileStore<obj> = Equinox.MemoryStore.VolatileStore()
         let log = LoggerConfiguration().WriteTo.Console().CreateLogger()
         let logEvents sn (events: FsCodec.ITimelineEvent<_>[]) =
@@ -56,14 +63,28 @@ let createService<'View,'State,'Command,'Event when 'Event :> TypeShape.UnionCon
         match automation with
         | Some automation' ->
             let _ : System.IDisposable = service.Subscribe (
-                fun streamName events -> 
+                fun streamName events ->
                     let events' = service.Load streamName
                     let view = ViewPattern.hydrate automation'.projection events'
                     let struct (name, streamId) =  FsCodec.StreamName.split streamName
                     match automation'.trigger view with
-                    | Some cmd -> Async.RunSynchronously <| service.Execute (streamId.ToString()) cmd 
+                    | Some cmd -> Async.RunSynchronously <| service.Execute (streamId.ToString()) cmd
                     | None -> ()
                     ()
+            )
+            ()
+        | None -> ()
+
+        match translation with
+        | Some (translator, targetService) ->
+            let _ : System.IDisposable = service.Subscribe (
+                fun streamName _events ->
+                    let struct (_, streamId) = FsCodec.StreamName.split streamName
+                    let history = service.Load streamName
+                    let cmds = TranslationPattern.run translator history
+                    cmds |> List.iter (fun cmd ->
+                        Async.RunSynchronously <| targetService.Execute (streamId.ToString()) cmd
+                    )
             )
             ()
         | None -> ()
