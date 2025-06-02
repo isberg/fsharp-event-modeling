@@ -4,7 +4,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <RootNamespace>event_modeling</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>0.17.0</Version>
+    <Version>0.18.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
