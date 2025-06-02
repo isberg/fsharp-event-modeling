@@ -32,7 +32,7 @@ let counterDecider : CommandPattern.Decider<State, Command, Event> = {
 
 [<EntryPoint>]
 let main _ =
-    let service = Service.createService counterDecider "Counter" None
+    let service = Service.createService counterDecider "Counter" None None
     let _ : IDisposable =
         service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =

@@ -55,7 +55,7 @@ type Decider<'State,'Command,'Event> = {
 ```fsharp
 [<EntryPoint>]
 let main _ =
-    let service = Service.createService counterDecider "Counter" None
+    let service = Service.createService counterDecider "Counter" None None
     let _ : System.IDisposable =
         service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =
@@ -78,4 +78,26 @@ Get the current state of counter 1: `curl localhost:8080/counters/1`
 ### Running the CounterApp sample
 
 Run `dotnet run --project samples/CounterApp/CounterApp.fsproj` to start the web API, then use the curl commands above to interact with it.
+
+### Translating events to commands
+
+Use `TranslationPattern.Translator` to convert the source event history into commands for another service. A translator consists of a projection and a translation function:
+
+```fsharp
+let lastEventProjection =
+    { ViewPattern.initial = None
+      project = fun _ e -> Some e }
+
+let mirrorTranslator : TranslationPattern.Translator<Event, Event option, Command> =
+    { projection = lastEventProjection
+      translate = function
+        | Some Incremented -> Some Increment
+        | _ -> None }
+
+let mirrorService = Service.createService counterDecider "Mirror" None None
+let counterService =
+    Service.createService counterDecider "Counter" None (Some (mirrorTranslator, mirrorService))
+```
+
+When `counterService` commits new events, the translator is invoked for each of them. Any produced commands are executed on the `mirrorService` using the same stream identifier.
 
