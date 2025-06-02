@@ -29,7 +29,7 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent
     : CommandPattern.Decider<'State,'Command,'Event>
       -> string
       -> AutomationPattern.Automation<'View,'State,'Event,'Command> option
-      -> (Translator<'Event,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
+      -> (Translator<'Event,_,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
       -> Service<'State,'Command,'Event>
     = fun decider categoryName automation translation ->
         let store : Equinox.MemoryStore.VolatileStore<obj> = Equinox.MemoryStore.VolatileStore()
