@@ -1,11 +1,19 @@
 # fsharp-event-modeling
 
-The intention of this library is to make proptotyping in F# using Event Storming, Event Modeling and Event Sourcing easier. Please check https://eventmodeling.org/posts/event-modeling-cheatsheet/ before using the library. :-)
+The intention of this library is to make prototyping in F# using Event Storming, Event Modeling and Event Sourcing easier. Please check https://eventmodeling.org/posts/event-modeling-cheatsheet/ before using the library. :-)
 
 ## Recommended further reading
 - https://www.eventstorming.com/
 - https://eventmodeling.org/
 - https://gregfyoung.wordpress.com/tag/event-sourcing/
+
+## Getting Started
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --project samples/CounterApp/CounterApp.fsproj
+```
 
 ## Example Usage
 
@@ -81,7 +89,7 @@ Run `dotnet run --project samples/CounterApp/CounterApp.fsproj` to start the web
 
 ### Translating events to commands
 
-Use `TranslationPattern.Translator` to convert the source event history into commands for another service. A translator consists of a projection and a translation function:
+The translation pattern helps wire event streams together by mapping events from one stream or category into commands for another. Use `TranslationPattern.Translator` to convert the source event history into commands for a downstream service. A translator consists of a projection and a translation function:
 
 ```fsharp
 let lastEventProjection =
@@ -99,5 +107,5 @@ let counterService =
     Service.createService counterDecider "Counter" None (Some (mirrorTranslator, mirrorService))
 ```
 
-When `counterService` commits new events, the translator is invoked for each of them. Any produced commands are executed on the `mirrorService` using the same stream identifier.
+When `counterService` commits new events, the translator is invoked for each of them. Any produced commands are executed on the `mirrorService` using the same stream identifier. This example mirrors events within the same category, but by supplying a mapping function you could translate between different categories or even use completely different stream identifiers.
 
