@@ -74,3 +74,8 @@ let main _ =
 Post the Increment command to counter 1: `curl localhost:8080/counters/1 -d '"Increment"'`
 
 Get the current state of counter 1: `curl localhost:8080/counters/1`
+
+### Running the CounterApp sample
+
+Run `dotnet run --project samples/CounterApp/CounterApp.fsproj` to start the web API, then use the curl commands above to interact with it.
+
