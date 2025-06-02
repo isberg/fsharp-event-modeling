@@ -26,6 +26,11 @@ let toJson (data: 'T) : WebPart =
     Writers.setMimeType "application/json; charset=utf-8"
     >=> OK (JsonSerializer.Serialize(data, jsonOptions))
 
+/// Box a projection so heterogeneous view types can be used together
+let boxProjection name (projection: ViewPattern.Projection<'View,'Event>) :
+    string * ('Event list -> obj) =
+    name, fun events -> ViewPattern.hydrate projection events |> box
+
 let deserialize<'TValue> : byte array -> Result<'TValue,string> = fun bytes ->
     try
         Ok <| JsonSerializer.Deserialize<'TValue>(bytes, jsonOptions)
@@ -37,17 +42,17 @@ let configure<'State,'Command,'Event>
   (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
   (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
   (service: Service<'State,'Command,'Event>)
-  (projections: (string * ViewPattern.Projection<_,'Event>) list)
+  (projections: (string * ('Event list -> obj)) list)
   : WebPart<HttpContext> =
       choose [
         GET >=> pathScan viewPath (fun (id,view) ctx -> async {
             let key = FsCodec.StreamName.compose category [| id |] 
             let history = service.Load key
-            match projections |> List.filter (fun (n,p) -> n=view) with
+            match projections |> List.filter (fun (n,_) -> n = view) with
             | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
-            | (_, projection) :: ps -> 
-                let view = ViewPattern.hydrate projection history
-                return! (toJson view) ctx      
+            | (_, hydrateView) :: _ ->
+                let view = hydrateView history
+                return! (toJson view) ctx
         })
         // GET /{resource}/{id}
         GET >=> pathScan path (fun id ctx -> async {

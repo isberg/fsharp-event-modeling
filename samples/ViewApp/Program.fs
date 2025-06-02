@@ -53,7 +53,7 @@ let main _ =
             "/counters/%s"
             "/counters/%s/%s"
             service
-            [ "count", countProjection
-              "history", historyProjection ]
+            [ GenericResource.boxProjection "count" countProjection
+              GenericResource.boxProjection "history" historyProjection ]
     Suave.Web.startWebServer Suave.Web.defaultConfig app
     0
