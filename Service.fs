@@ -23,13 +23,13 @@ type Service<'State,'Command,'Event>
 open Serilog
 open TranslationPattern
     
-let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent
+let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
     when 'Event :> TypeShape.UnionContract.IUnionContract
     and 'TEvent :> TypeShape.UnionContract.IUnionContract>
     : CommandPattern.Decider<'State,'Command,'Event>
       -> string
       -> AutomationPattern.Automation<'View,'State,'Event,'Command> option
-      -> (Translator<'Event,_,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
+      -> (Translator<'Event,'TView,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
       -> Service<'State,'Command,'Event>
     = fun decider categoryName automation translation ->
         let store : Equinox.MemoryStore.VolatileStore<obj> = Equinox.MemoryStore.VolatileStore()
