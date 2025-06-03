@@ -22,6 +22,11 @@ type Service<'State,'Command,'Event>
 
 open Serilog
 open TranslationPattern
+
+/// Default mapping from source stream name to target instance identifier.
+let defaultStreamId (streamName: FsCodec.StreamName) =
+    let struct (_, streamId) = FsCodec.StreamName.split streamName
+    streamId.ToString()
     
 let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
     when 'Event :> TypeShape.UnionContract.IUnionContract
@@ -30,8 +35,9 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
       -> string
       -> AutomationPattern.Automation<'View,'State,'Event,'Command> option
       -> (Translator<'Event,'TView,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
+      -> (FsCodec.StreamName -> string)
       -> Service<'State,'Command,'Event>
-    = fun decider categoryName automation translation ->
+    = fun decider categoryName automation translation mapStreamId ->
         let store : Equinox.MemoryStore.VolatileStore<obj> = Equinox.MemoryStore.VolatileStore()
         let log = LoggerConfiguration().WriteTo.Console().CreateLogger()
         let logEvents sn (events: FsCodec.ITimelineEvent<_>[]) =
@@ -79,11 +85,11 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
         | Some (translator, targetService) ->
             let _ : System.IDisposable = service.Subscribe (
                 fun streamName _events ->
-                    let struct (_, streamId) = FsCodec.StreamName.split streamName
                     let history = service.Load streamName
                     let cmds = TranslationPattern.run translator history
+                    let targetId = mapStreamId streamName
                     cmds |> List.iter (fun cmd ->
-                        Async.RunSynchronously <| targetService.Execute (streamId.ToString()) cmd
+                        Async.RunSynchronously <| targetService.Execute targetId cmd
                     )
             )
             ()
