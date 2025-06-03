@@ -72,7 +72,7 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
                 fun streamName events ->
                     let events' = service.Load streamName
                     let view = ViewPattern.hydrate automation'.projection events'
-                    let struct (name, streamId) =  FsCodec.StreamName.split streamName
+                    let struct (_, streamId) =  FsCodec.StreamName.split streamName
                     match automation'.trigger view with
                     | Some cmd -> Async.RunSynchronously <| service.Execute (streamId.ToString()) cmd
                     | None -> ()
