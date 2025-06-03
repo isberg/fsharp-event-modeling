@@ -2,10 +2,11 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Tests.fs" />
-    <ProjectReference Include="../event-modeling.fsproj" />
+    <ProjectReference Include="../../event-modeling.fsproj" />
     <PackageReference Include="Expecto" Version="9.0.4" />
   </ItemGroup>
 </Project>
