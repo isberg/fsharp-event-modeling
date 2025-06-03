@@ -3,6 +3,8 @@ module EventModeling.Tests
 open Expecto
 open CommandPattern
 open ViewPattern
+open AutomationPattern
+open TranslationPattern
 
 // Domain types and decider as in README
 
@@ -64,6 +66,62 @@ let hydrateTests =
             let history = [ Incremented; Decremented; Incremented ]
             let count = ViewPattern.hydrate countProjection history
             Expect.equal count 1 "Count should be 1"
+    ]
+
+[<Tests>]
+let automationTests =
+    let triggerIfZero count = if count = 0 then Some Increment else None
+    let automation =
+        { projection = countProjection
+          trigger = triggerIfZero
+          decider = counterDecider }
+    testList "automation" [
+        testCase "runIncremental executes command when trigger fires" <| fun _ ->
+            let events, view, state =
+                AutomationPattern.runIncremental automation 0 Zero []
+            Expect.equal events [ Incremented ] "Should emit Incremented"
+            Expect.equal view 0 "View unchanged"
+            Expect.equal state (Succ Zero) "State updated"
+
+        testCase "run ignores when trigger does not fire" <| fun _ ->
+            let events, view, state =
+                AutomationPattern.runIncremental automation 1 (Succ Zero) []
+            Expect.equal events [] "No events emitted"
+            Expect.equal view 1 "View unchanged"
+            Expect.equal state (Succ Zero) "State unchanged"
+
+        testCase "run hydrates and executes" <| fun _ ->
+            let history = []
+            let events = AutomationPattern.run automation history
+            Expect.equal events [ Incremented ] "Should produce event from run"
+    ]
+
+[<Tests>]
+let translationTests =
+    let lastEventProjection =
+        { ViewPattern.initial = None
+          project = fun _ e -> Some e }
+    let translator =
+        { projection = lastEventProjection
+          translate = function
+            | Some Incremented -> Some Increment
+            | _ -> None }
+    testList "translation" [
+        testCase "runIncremental produces command" <| fun _ ->
+            let cmds, view =
+                TranslationPattern.runIncremental translator None [ Incremented ]
+            Expect.equal cmds [ Increment ] "Command emitted"
+            Expect.equal view (Some Incremented) "View updated"
+
+        testCase "run processes history" <| fun _ ->
+            let history = [ Incremented; Decremented ]
+            let cmds = TranslationPattern.run translator history
+            Expect.equal cmds [] "No command for last event"
+
+        testCase "run produces command for last event" <| fun _ ->
+            let history = [ Incremented ]
+            let cmds = TranslationPattern.run translator history
+            Expect.equal cmds [ Increment ] "Command expected"
     ]
 
 [<EntryPoint>]
