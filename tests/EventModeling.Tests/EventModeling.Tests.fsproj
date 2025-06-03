@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Tests.fs" />
+    <ProjectReference Include="../event-modeling.fsproj" />
+    <PackageReference Include="Expecto" Version="9.0.4" />
+  </ItemGroup>
+</Project>
