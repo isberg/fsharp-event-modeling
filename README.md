@@ -117,3 +117,7 @@ Run `dotnet run --project samples/AutomationApp/AutomationApp.fsproj` to start a
 
 Run `dotnet run --project samples/TranslationApp/TranslationApp.fsproj` to start two services where increment events from the `Counter` category are translated into `Increment` commands for the `Mirror` category.
 
+
+### Running the InventoryApp sample
+
+Run `dotnet run --project samples/InventoryApp/InventoryApp.fsproj` to start a minimal inventory service that demonstrates all four patterns with an automatic reorder workflow.

@@ -77,7 +77,7 @@ let main _ =
             mirrorService
             [ GenericResource.boxProjection "count" countProjection ]
 
-    let app = Suave.Operators.choose [ counterApp; mirrorApp ]
+    let app = choose [ counterApp; mirrorApp ]
 
     Suave.Web.startWebServer Suave.Web.defaultConfig app
     0
