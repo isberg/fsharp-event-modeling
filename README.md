@@ -109,3 +109,11 @@ let counterService =
 
 When `counterService` commits new events, the translator is invoked for each of them. Any produced commands are executed on the `mirrorService` using the same stream identifier. This example mirrors events within the same category, but by supplying a mapping function you could translate between different categories or even use completely different stream identifiers.
 
+### Running the AutomationApp sample
+
+Run `dotnet run --project samples/AutomationApp/AutomationApp.fsproj` to start a service that automatically issues an `Increment` command whenever the counter reaches zero.
+
+### Running the TranslationApp sample
+
+Run `dotnet run --project samples/TranslationApp/TranslationApp.fsproj` to start two services where increment events from the `Counter` category are translated into `Increment` commands for the `Mirror` category.
+
