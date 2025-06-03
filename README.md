@@ -63,7 +63,7 @@ type Decider<'State,'Command,'Event> = {
 ```fsharp
 [<EntryPoint>]
 let main _ =
-    let service = Service.createService counterDecider "Counter" None None
+    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
     let _ : System.IDisposable =
         service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =
@@ -102,12 +102,12 @@ let mirrorTranslator : TranslationPattern.Translator<Event, Event option, Comman
         | Some Incremented -> Some Increment
         | _ -> None }
 
-let mirrorService = Service.createService counterDecider "Mirror" None None
+let mirrorService = Service.createService counterDecider "Mirror" None None Service.defaultStreamId
 let counterService =
-    Service.createService counterDecider "Counter" None (Some (mirrorTranslator, mirrorService))
+    Service.createService counterDecider "Counter" None (Some (mirrorTranslator, mirrorService)) Service.defaultStreamId
 ```
 
-When `counterService` commits new events, the translator is invoked for each of them. Any produced commands are executed on the `mirrorService` using the same stream identifier. This example mirrors events within the same category, but by supplying a mapping function you could translate between different categories or even use completely different stream identifiers.
+When `counterService` commits new events, the translator is invoked for each of them. Any produced commands are executed on the `mirrorService` using the stream identifier returned from the mapping function (here `Service.defaultStreamId`). This example mirrors events within the same category, but by supplying a custom mapping you can translate between different categories or even use completely different stream identifiers.
 
 ### Running the AutomationApp sample
 

@@ -49,10 +49,10 @@ let mirrorTranslator : TranslationPattern.Translator<Event, Event option, Comman
         | _ -> None }
 
 let mirrorService =
-    Service.createService counterDecider "Mirror" None None
+    Service.createService counterDecider "Mirror" None None Service.defaultStreamId
 
 let counterService =
-    Service.createService counterDecider "Counter" None (Some (mirrorTranslator, mirrorService))
+    Service.createService counterDecider "Counter" None (Some (mirrorTranslator, mirrorService)) Service.defaultStreamId
 
 [<EntryPoint>]
 let main _ =
