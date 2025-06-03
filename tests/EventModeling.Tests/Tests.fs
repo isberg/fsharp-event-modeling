@@ -2,6 +2,7 @@ module EventModeling.Tests
 
 open Expecto
 open CommandPattern
+open ViewPattern
 
 // Domain types and decider as in README
 
