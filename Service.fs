@@ -1,11 +1,12 @@
 module Service
 
-type Service<'State,'Command,'Event> 
-    internal 
+type Service<'State,'Command,'Event>
+    internal
         ( resolve: string -> Equinox.Decider<'Event, 'State>
         , decide : 'Command -> 'State -> 'Event array
         , subscribe : (FsCodec.StreamName -> 'Event list -> unit) -> System.IDisposable
         , load : FsCodec.StreamName -> 'Event list
+        , loadCategory : unit -> ViewPattern.StreamEvent<'Event> list
         ) =
 
     member _.Execute : string -> 'Command -> Async<unit> = fun instanceId command ->
@@ -20,8 +21,12 @@ type Service<'State,'Command,'Event>
     member _.Load : FsCodec.StreamName -> 'Event list =
         load
 
+    member _.LoadCategory () : ViewPattern.StreamEvent<'Event> list =
+        loadCategory ()
+
 open Serilog
 open TranslationPattern
+open ViewPattern
 
 /// Default mapping from source stream name to target instance identifier.
 let defaultStreamId (streamName: FsCodec.StreamName) =
@@ -40,10 +45,20 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
     = fun decider categoryName automation translation mapStreamId ->
         let store : Equinox.MemoryStore.VolatileStore<obj> = Equinox.MemoryStore.VolatileStore()
         let log = LoggerConfiguration().WriteTo.Console().CreateLogger()
-        let logEvents sn (events: FsCodec.ITimelineEvent<_>[]) =
-            log.Information("Committed to {streamName}, events: {@events}", sn, seq { for x in events -> x.EventType })
-        let _ = store.Committed.Subscribe(fun struct (sn, xs) -> logEvents sn xs)
         let codec : FsCodec.IEventCodec<'Event,obj,unit> = FsCodec.Box.Codec.Create()
+        let categoryEvents = System.Collections.Generic.List<ViewPattern.StreamEvent<'Event>>()
+        let logAndRecord sn (events: FsCodec.ITimelineEvent<_>[]) =
+            log.Information("Committed to {streamName}, events: {@events}", sn, seq { for x in events -> x.EventType })
+            let decoded =
+                events
+                |> Array.map codec.Decode
+                |> Array.choose (function | ValueSome v -> Some v | ValueNone -> None)
+            let struct (_, streamId) = FsCodec.StreamName.split sn
+            lock categoryEvents (fun () ->
+                decoded
+                |> Array.iter (fun e -> categoryEvents.Add({ StreamId = streamId.ToString(); Event = e }))
+            )
+        let _ = store.Committed.Subscribe(fun struct (sn, xs) -> logAndRecord sn xs)
         let cat 
             : Equinox.Category<'Event,'State,unit> 
             = Equinox.MemoryStore.MemoryStoreCategory(store, categoryName, codec, Array.fold decider.evolve, decider.initial)
@@ -56,14 +71,22 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
             match store.Load (streamName.ToString()) with
             | null -> Array.empty<FsCodec.ITimelineEvent<obj>>
             | events -> events
-        let load : FsCodec.StreamName -> 'Event list = loadSafe >> Array.map codec.Decode >> Array.choose (function | ValueSome v -> Some v | ValueNone -> None) >> Array.toList
+        let load : FsCodec.StreamName -> 'Event list =
+            loadSafe
+            >> Array.map codec.Decode
+            >> Array.choose (function | ValueSome v -> Some v | ValueNone -> None)
+            >> Array.toList
+
+        let loadCategory () : ViewPattern.StreamEvent<'Event> list =
+            lock categoryEvents (fun () -> categoryEvents |> Seq.toList)
            
-        let service = 
+        let service =
             Service
                 ( FsCodec.StreamId.gen id >> Equinox.Decider.forStream log cat
                 , fun cmd state -> decider.decide cmd state |> List.toArray
                 , subscribe
                 , load
+                , loadCategory
                 )
         
         match automation with

@@ -5,6 +5,7 @@ open CommandPattern
 open ViewPattern
 open AutomationPattern
 open TranslationPattern
+open Service
 
 // Domain types and decider as in README
 
@@ -123,6 +124,16 @@ let translationTests =
             let cmds = TranslationPattern.run translator history
             Expect.equal cmds [ Increment ] "Command expected"
     ]
+
+[<Tests>]
+let crossStreamTests =
+    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
+    testCase "loadCategory aggregates events across streams" <| fun _ ->
+        Async.RunSynchronously <| service.Execute "a" Increment
+        Async.RunSynchronously <| service.Execute "b" Increment
+        let events = service.LoadCategory()
+        let ids = events |> List.map (fun e -> e.StreamId)
+        Expect.equal (ids |> List.sort) [ "a"; "b" ] "Both stream ids should be present"
 
 [<EntryPoint>]
 let main args =
