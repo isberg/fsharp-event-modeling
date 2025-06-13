@@ -135,6 +135,38 @@ let crossStreamTests =
         let ids = events |> List.map (fun e -> e.StreamId)
         Expect.equal (ids |> List.sort) [ "a"; "b" ] "Both stream ids should be present"
 
+[<Tests>]
+let categoryProjectionTests =
+    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
+
+    let totalProjection : Projection<int, ViewPattern.StreamEvent<Event>> =
+        { initial = 0
+          project = fun total se ->
+            match se.Event with
+            | Incremented -> total + 1
+            | Decremented -> total - 1 }
+
+    let allCountsProjection : Projection<Map<string,int>, ViewPattern.StreamEvent<Event>> =
+        { initial = Map.empty
+          project = fun counts se ->
+            let current = counts |> Map.tryFind se.StreamId |> Option.defaultValue 0
+            let updated =
+                match se.Event with
+                | Incremented -> current + 1
+                | Decremented -> current - 1
+            counts |> Map.add se.StreamId updated }
+
+    testCase "category projections hydrate correctly" <| fun _ ->
+        Async.RunSynchronously <| service.Execute "a" Increment
+        Async.RunSynchronously <| service.Execute "b" Increment
+        Async.RunSynchronously <| service.Execute "b" Increment
+        Async.RunSynchronously <| service.Execute "b" Decrement
+        let events = service.LoadCategory()
+        let total = ViewPattern.hydrate totalProjection events
+        Expect.equal total 2 "Total should equal 2"
+        let counts = ViewPattern.hydrate allCountsProjection events
+        Expect.equal counts (Map.ofList [ "a", 1; "b", 1 ]) "Counts should match"
+
 [<EntryPoint>]
 let main args =
     runTestsInAssembly defaultConfig args
