@@ -32,13 +32,13 @@ let counterDecider : CommandPattern.Decider<State, Command, Event> = {
 
 // View projections demonstrating the ViewPattern
 
-let countProjection : ViewPattern.Projection<int, Event> =
+let countProjection : ViewPattern.ProjectionSpec<int, Event> =
     { initial = 0
       project = fun count -> function
         | Incremented -> count + 1
         | Decremented -> count - 1 }
 
-let lastEventProjection : ViewPattern.Projection<Event option, Event> =
+let lastEventProjection : ViewPattern.ProjectionSpec<Event option, Event> =
     { initial = None
       project = fun _ e -> Some e }
 

@@ -53,7 +53,7 @@ let inventoryDecider : Decider<InventoryState, InventoryCommand, InventoryEvent>
 
 // Projection of current stock level (View pattern)
 
-let stockProjection : Projection<int, InventoryEvent> =
+let stockProjection : ProjectionSpec<int, InventoryEvent> =
     { initial = 0
       project = fun current -> function
         | StockAdded qty -> current + qty

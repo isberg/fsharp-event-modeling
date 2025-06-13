@@ -27,38 +27,38 @@ let toJson (data: 'T) : WebPart =
     >=> OK (JsonSerializer.Serialize(data, jsonOptions))
 
 /// Box a projection so heterogeneous view types can be used together
-let boxProjection name (projection: ViewPattern.Projection<'View,'Event>) :
+let boxProjection name (projection: ViewPattern.ProjectionSpec<'View,'Event>) :
     string * ('Event list -> obj) =
     name, fun events -> ViewPattern.hydrate projection events |> box
 
 /// Box a category projection operating over multiple streams
-let boxCategoryProjection name (projection: ViewPattern.Projection<'View, ViewPattern.StreamEvent<'Event>>) :
+let boxCategoryProjection name (projection: ViewPattern.ProjectionSpec<'View, ViewPattern.StreamEvent<'Event>>) :
     string * (ViewPattern.StreamEvent<'Event> list -> obj) =
     name, fun events -> ViewPattern.hydrate projection events |> box
 
 /// Projection scope for routing
-type ScopedProjection<'Event> =
-    | Stream of string * ('Event list -> obj)
-    | Category of string * (ViewPattern.StreamEvent<'Event> list -> obj)
+type BoxedProjection<'Event> =
+    | StreamProjection of string * ('Event list -> obj)
+    | CategoryProjection of string * (ViewPattern.StreamEvent<'Event> list -> obj)
 
 /// Helper to wrap a stream projection into a scoped one
 let boxedStream name projection =
     let n, f = boxProjection name projection
-    Stream (n, f)
+    StreamProjection (n, f)
 
 /// Helper to wrap a category projection into a scoped one
 let boxedCategory name projection =
     let n, f = boxCategoryProjection name projection
-    Category (n, f)
+    CategoryProjection (n, f)
 
-let private partition (projections: ScopedProjection<'Event> list) :
+let private partition (projections: BoxedProjection<'Event> list) :
     (string * ('Event list -> obj)) list * (string * (ViewPattern.StreamEvent<'Event> list -> obj)) list =
     let streams =
         projections
-        |> List.choose (function Stream (n,f) -> Some (n,f) | _ -> None)
+        |> List.choose (function StreamProjection (n,f) -> Some (n,f) | _ -> None)
     let categories =
         projections
-        |> List.choose (function Category (n,f) -> Some (n,f) | _ -> None)
+        |> List.choose (function CategoryProjection (n,f) -> Some (n,f) | _ -> None)
     streams, categories
 
 let deserialize<'TValue> : byte array -> Result<'TValue,string> = fun bytes ->
@@ -72,7 +72,7 @@ let configure<'State,'Command,'Event>
   (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
   (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
   (service: Service<'State,'Command,'Event>)
-  (projections: ScopedProjection<'Event> list)
+  (projections: BoxedProjection<'Event> list)
   : WebPart<HttpContext> =
       let streamProjections, _ = partition projections
       choose [
@@ -110,7 +110,7 @@ let configureWithCategory<'State,'Command,'Event>
   (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
   (categoryViewPath: PrintfFormat<string -> WebPart, unit, string, WebPart, string>)
   (service: Service<'State,'Command,'Event>)
-  (projections: ScopedProjection<'Event> list)
+  (projections: BoxedProjection<'Event> list)
   : WebPart<HttpContext> =
       let streamProjections, categoryProjections = partition projections
       choose [

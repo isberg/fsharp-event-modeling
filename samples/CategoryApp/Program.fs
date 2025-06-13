@@ -31,21 +31,21 @@ let counterDecider : CommandPattern.Decider<State, Command, Event> = {
 }
 
 // Per-counter projection
-let countProjection : ViewPattern.Projection<int, Event> =
+let countProjection : ViewPattern.ProjectionSpec<int, Event> =
     { initial = 0
       project = fun count -> function
         | Incremented -> count + 1
         | Decremented -> count - 1 }
 
 // Category-level projections
-let totalProjection : ViewPattern.Projection<int, ViewPattern.StreamEvent<Event>> =
+let totalProjection : ViewPattern.ProjectionSpec<int, ViewPattern.StreamEvent<Event>> =
     { initial = 0
       project = fun total se ->
         match se.Event with
         | Incremented -> total + 1
         | Decremented -> total - 1 }
 
-let allCountsProjection : ViewPattern.Projection<Map<string,int>, ViewPattern.StreamEvent<Event>> =
+let allCountsProjection : ViewPattern.ProjectionSpec<Map<string,int>, ViewPattern.StreamEvent<Event>> =
     { initial = Map.empty
       project = fun counts se ->
         let current = counts |> Map.tryFind se.StreamId |> Option.defaultValue 0

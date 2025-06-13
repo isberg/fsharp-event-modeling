@@ -4,7 +4,7 @@ open CommandPattern
 open ViewPattern
 
 type Automation<'View,'State,'Event,'Command> = {
-    projection : Projection<'View,'Event>
+    projection : ProjectionSpec<'View,'Event>
     trigger    : 'View -> 'Command option 
     decider    : Decider<'State,'Command,'Event>
 }
