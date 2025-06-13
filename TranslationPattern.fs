@@ -4,7 +4,7 @@ open ViewPattern
 
 /// Translates a view of source events into a command for another service
 type Translator<'SourceEvent,'SourceView,'Command> = {
-    projection : Projection<'SourceView,'SourceEvent>
+    projection : ProjectionSpec<'SourceView,'SourceEvent>
     translate  : 'SourceView -> 'Command option
 }
 

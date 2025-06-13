@@ -32,7 +32,7 @@ let counterDecider : CommandPattern.Decider<State, Command, Event> = {
 
 // Projection and automation trigger
 
-let countProjection : ViewPattern.Projection<int, Event> =
+let countProjection : ViewPattern.ProjectionSpec<int, Event> =
     { initial = 0
       project = fun count -> function
         | Incremented -> count + 1
