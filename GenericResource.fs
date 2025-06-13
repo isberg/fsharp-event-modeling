@@ -36,6 +36,31 @@ let boxCategoryProjection name (projection: ViewPattern.Projection<'View, ViewPa
     string * (ViewPattern.StreamEvent<'Event> list -> obj) =
     name, fun events -> ViewPattern.hydrate projection events |> box
 
+/// Projection scope for routing
+type ScopedProjection<'Event> =
+    | Stream of string * ('Event list -> obj)
+    | Category of string * (ViewPattern.StreamEvent<'Event> list -> obj)
+
+/// Helper to wrap a stream projection into a scoped one
+let boxedStream name projection =
+    let n, f = boxProjection name projection
+    Stream (n, f)
+
+/// Helper to wrap a category projection into a scoped one
+let boxedCategory name projection =
+    let n, f = boxCategoryProjection name projection
+    Category (n, f)
+
+let private partition (projections: ScopedProjection<'Event> list) :
+    (string * ('Event list -> obj)) list * (string * (ViewPattern.StreamEvent<'Event> list -> obj)) list =
+    let streams =
+        projections
+        |> List.choose (function Stream (n,f) -> Some (n,f) | _ -> None)
+    let categories =
+        projections
+        |> List.choose (function Category (n,f) -> Some (n,f) | _ -> None)
+    streams, categories
+
 let deserialize<'TValue> : byte array -> Result<'TValue,string> = fun bytes ->
     try
         Ok <| JsonSerializer.Deserialize<'TValue>(bytes, jsonOptions)
@@ -47,13 +72,14 @@ let configure<'State,'Command,'Event>
   (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
   (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
   (service: Service<'State,'Command,'Event>)
-  (projections: (string * ('Event list -> obj)) list)
+  (projections: ScopedProjection<'Event> list)
   : WebPart<HttpContext> =
+      let streamProjections, _ = partition projections
       choose [
         GET >=> pathScan viewPath (fun (id,view) ctx -> async {
-            let key = FsCodec.StreamName.compose category [| id |] 
+            let key = FsCodec.StreamName.compose category [| id |]
             let history = service.Load key
-            match projections |> List.filter (fun (n,_) -> n = view) with
+            match streamProjections |> List.filter (fun (n,_) -> n = view) with
             | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
             | (_, hydrateView) :: _ ->
                 let view = hydrateView history
@@ -84,9 +110,9 @@ let configureWithCategory<'State,'Command,'Event>
   (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
   (categoryViewPath: PrintfFormat<string -> WebPart, unit, string, WebPart, string>)
   (service: Service<'State,'Command,'Event>)
-  (streamProjections: (string * ('Event list -> obj)) list)
-  (categoryProjections: (string * (ViewPattern.StreamEvent<'Event> list -> obj)) list)
+  (projections: ScopedProjection<'Event> list)
   : WebPart<HttpContext> =
+      let streamProjections, categoryProjections = partition projections
       choose [
         GET >=> pathScan categoryViewPath (fun view ctx -> async {
             match categoryProjections |> List.filter (fun (n,_) -> n = view) with
