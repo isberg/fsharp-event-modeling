@@ -121,3 +121,7 @@ Run `dotnet run --project samples/TranslationApp/TranslationApp.fsproj` to start
 ### Running the InventoryApp sample
 
 Run `dotnet run --project samples/InventoryApp/InventoryApp.fsproj` to start a minimal inventory service that demonstrates all four patterns with an automatic reorder workflow.
+
+### Running the CategoryApp sample
+
+Run `dotnet run --project samples/CategoryApp/CategoryApp.fsproj` to start a service exposing category-level views across all counters.
