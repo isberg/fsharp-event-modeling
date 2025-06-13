@@ -57,7 +57,9 @@ let allCountsProjection : ViewPattern.ProjectionSpec<Map<string,int>, ViewPatter
 
 [<EntryPoint>]
 let main _ =
-    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
+    let service =
+        Service.ServiceConfig.create "Counter"
+        |> Service.createServiceWith counterDecider
     let _ : IDisposable = service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =
         GenericResource.configureWithCategory

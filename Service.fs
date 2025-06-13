@@ -32,6 +32,34 @@ open ViewPattern
 let defaultStreamId (streamName: FsCodec.StreamName) =
     let struct (_, streamId) = FsCodec.StreamName.split streamName
     streamId.ToString()
+
+type ServiceConfig<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView> =
+    { categoryName : string
+      automation : AutomationPattern.Automation<'View,'State,'Event,'Command> option
+      translation : (Translator<'Event,'TView,'TCommand> * Service<'TState,'TCommand,'TEvent>) option
+      mapStreamId : FsCodec.StreamName -> string }
+
+module ServiceConfig =
+    /// Start a configuration with defaults for optional fields
+    let create<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView>
+        categoryName : ServiceConfig<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView> =
+        { categoryName = categoryName
+          automation = None
+          translation = None
+          mapStreamId = defaultStreamId }
+
+    /// Set the automation field
+    let withAutomation automation (config : ServiceConfig<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView>) =
+        { config with automation = Some automation }
+
+    /// Set the translation field
+    let withTranslation translation (config : ServiceConfig<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView>) =
+        { config with translation = Some translation }
+
+    /// Override the stream id mapping
+    let withMapStreamId mapStreamId (config : ServiceConfig<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView>) =
+        { config with mapStreamId = mapStreamId }
+
     
 let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
     when 'Event :> TypeShape.UnionContract.IUnionContract
@@ -119,5 +147,18 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
         | None -> ()
 
         service
+
+let createServiceWith<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
+    when 'Event :> TypeShape.UnionContract.IUnionContract
+    and 'TEvent :> TypeShape.UnionContract.IUnionContract>
+    (decider : CommandPattern.Decider<'State,'Command,'Event>)
+    (config : ServiceConfig<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView>)
+    : Service<'State,'Command,'Event> =
+    createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView>
+        decider
+        config.categoryName
+        config.automation
+        config.translation
+        config.mapStreamId
 
 

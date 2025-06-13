@@ -44,7 +44,9 @@ let historyProjection : ViewPattern.ProjectionSpec<Event list, Event> =
 
 [<EntryPoint>]
 let main _ =
-    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
+    let service =
+        Service.ServiceConfig.create "Counter"
+        |> Service.createServiceWith counterDecider
     let _ : IDisposable =
         service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =
