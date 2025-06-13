@@ -49,7 +49,9 @@ let automation : AutomationPattern.Automation<int, State, Event, Command> =
 [<EntryPoint>]
 let main _ =
     let service =
-        Service.createService counterDecider "Counter" (Some automation) None Service.defaultStreamId
+        Service.ServiceConfig.create "Counter"
+        |> Service.ServiceConfig.withAutomation automation
+        |> Service.createServiceWith counterDecider
     let _ : IDisposable =
         service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =

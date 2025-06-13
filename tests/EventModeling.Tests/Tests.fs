@@ -127,7 +127,9 @@ let translationTests =
 
 [<Tests>]
 let crossStreamTests =
-    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
+    let service =
+        Service.ServiceConfig.create "Counter"
+        |> Service.createServiceWith counterDecider
     testCase "loadCategory aggregates events across streams" <| fun _ ->
         Async.RunSynchronously <| service.Execute "a" Increment
         Async.RunSynchronously <| service.Execute "b" Increment
@@ -137,7 +139,9 @@ let crossStreamTests =
 
 [<Tests>]
 let categoryProjectionTests =
-    let service = Service.createService counterDecider "Counter" None None Service.defaultStreamId
+    let service =
+        Service.ServiceConfig.create "Counter"
+        |> Service.createServiceWith counterDecider
 
     let totalProjection : ProjectionSpec<int, ViewPattern.StreamEvent<Event>> =
         { initial = 0

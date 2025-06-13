@@ -107,13 +107,14 @@ let reorderTranslator : Translator<InventoryEvent, InventoryEvent option, Suppli
 // Create the services
 
 let supplierService =
-    Service.createService supplierDecider "Supplier" None None Service.defaultStreamId
+    Service.ServiceConfig.create "Supplier"
+    |> Service.createServiceWith supplierDecider
 
 let inventoryService =
-    Service.createService inventoryDecider "Inventory"
-        (Some lowStockAutomation)
-        (Some (reorderTranslator, supplierService))
-        Service.defaultStreamId
+    Service.ServiceConfig.create "Inventory"
+    |> Service.ServiceConfig.withAutomation lowStockAutomation
+    |> Service.ServiceConfig.withTranslation (reorderTranslator, supplierService)
+    |> Service.createServiceWith inventoryDecider
 
 [<EntryPoint>]
 let main _ =
