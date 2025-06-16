@@ -171,6 +171,28 @@ let categoryProjectionTests =
         let counts = ViewPattern.hydrate allCountsProjection events
         Expect.equal counts (Map.ofList [ "a", 1; "b", 1 ]) "Counts should match"
 
+[<Tests>]
+let automationServiceTests =
+    let triggerIfZero count = if count = 0 then Some Increment else None
+    let automation =
+        { projection = countProjection
+          trigger = triggerIfZero
+          decider = counterDecider }
+    let service =
+        Service.ServiceConfig.create "Counter"
+        |> Service.ServiceConfig.withAutomation automation
+        |> Service.createServiceWith counterDecider
+    testCase "automation fires on decrement to zero" <| fun _ ->
+        Async.RunSynchronously <| service.Execute "1" Increment
+        Async.RunSynchronously <| service.Execute "1" Decrement
+        let events =
+            service.LoadCategory()
+            |> List.filter (fun e -> e.StreamId = "1")
+            |> List.map (fun e -> e.Event)
+        Expect.equal events [ Incremented; Decremented; Incremented ] "Automation should append Incremented"
+        let state = Async.RunSynchronously <| service.Read "1"
+        Expect.equal state (Succ Zero) "State should reflect automation command"
+
 [<EntryPoint>]
 let main args =
     runTestsInAssembly defaultConfig args
