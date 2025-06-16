@@ -126,6 +126,27 @@ let translationTests =
     ]
 
 [<Tests>]
+let serviceTranslationTests =
+    let lastEventProjection =
+        { ViewPattern.initial = None
+          project = fun _ e -> Some e }
+    let translator =
+        { projection = lastEventProjection
+          translate = function
+            | Some Incremented -> Some Increment
+            | _ -> None }
+    testCase "service translates events into commands" <| fun _ ->
+        let mirrorService =
+            Service.createService counterDecider "Mirror" None None Service.defaultStreamId
+        let counterService =
+            Service.createService counterDecider "Counter" None (Some (translator, mirrorService)) Service.defaultStreamId
+        Async.RunSynchronously <| counterService.Execute "a" Increment
+        let events =
+            FsCodec.StreamName.compose "Mirror" [| "a" |]
+            |> mirrorService.Load
+        Expect.equal events [ Incremented ] "Mirror should record translated event"
+
+[<Tests>]
 let crossStreamTests =
     let service =
         Service.ServiceConfig.create "Counter"
