@@ -74,86 +74,69 @@ let deserialize<'TValue> : byte array -> Result<'TValue,string> = fun bytes ->
         Ok <| JsonSerializer.Deserialize<'TValue>(bytes, jsonOptions)
     with ex -> Error ex.Message
 
-/// Configure routes for a resource identified by 'idPath' (e.g. "counters/%s")
-let configure<'State,'Command,'Event>
-  (category : string)
-  (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
-  (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
-  (service: Service<'State,'Command,'Event>)
-  (projections: BoxedProjection<'Event> list)
-  : WebPart<HttpContext> =
-      let streamProjections, _ = partition projections
-      choose [
-        GET >=> pathScan viewPath (fun (id,view) ctx -> async {
-            let key = FsCodec.StreamName.compose category [| id |]
-            let history = service.Load key
-            match streamProjections |> List.filter (fun (n,_) -> n = view) with
-            | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
-            | (_, hydrateView) :: _ ->
-                let view = hydrateView history
-                return! (toJson view) ctx
-        })
-        // GET /{resource}/{id}
-        GET >=> pathScan path (fun id ctx -> async {
-          let! state = service.Read id
-          return! toJson state ctx
-        })
-        // POST /{resource}/{id}
-        POST >=> pathScan path (fun id ctx -> async {
-            match deserialize<'Command> ctx.request.rawForm with
-            | Error msg -> return! BAD_REQUEST msg ctx
-            | Ok cmd ->
-                try
-                    do! service.Execute id cmd
-                    let! state = service.Read id
-                    return! (toJson state) ctx
-                with ex -> return! CONFLICT ex.Message ctx
-        })
-      ]
+/// Routing configuration for a resource
+type ResourceConfig<'State,'Command,'Event> =
+    { category : string
+      path : PrintfFormat<string -> WebPart, unit, string, WebPart, string>
+      viewPath : PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string>
+      service : Service<'State,'Command,'Event>
+      projections : BoxedProjection<'Event> list
+      categoryViewPath : PrintfFormat<string -> WebPart, unit, string, WebPart, string> option }
 
-/// Configure routes with additional category-level projections
-let configureWithCategory<'State,'Command,'Event>
-  (category : string)
-  (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string> )
-  (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> )
-  (categoryViewPath: PrintfFormat<string -> WebPart, unit, string, WebPart, string>)
-  (service: Service<'State,'Command,'Event>)
-  (projections: BoxedProjection<'Event> list)
+module ResourceConfig =
+    /// Start a configuration with required fields
+    let create category path viewPath service projections : ResourceConfig<_,_,_> =
+        { category = category
+          path = path
+          viewPath = viewPath
+          service = service
+          projections = projections
+          categoryViewPath = None }
+
+    /// Specify a route for category-level projections
+    let withCategoryViewPath p config = { config with categoryViewPath = Some p }
+
+/// Configure routes for a resource, optionally enabling category-level projections
+let configure<'State,'Command,'Event>
+  (cfg : ResourceConfig<'State,'Command,'Event>)
   : WebPart<HttpContext> =
-      let streamProjections, categoryProjections = partition projections
-      choose [
-        GET >=> pathScan categoryViewPath (fun view ctx -> async {
-            match categoryProjections |> List.filter (fun (n,_) -> n = view) with
-            | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
-            | (_, hydrateView) :: _ ->
-                let events = service.LoadCategory()
-                let v = hydrateView events
-                return! (toJson v) ctx
-        })
-        // per-stream projections
-        GET >=> pathScan viewPath (fun (id,view) ctx -> async {
-            let key = FsCodec.StreamName.compose category [| id |]
-            let history = service.Load key
-            match streamProjections |> List.filter (fun (n,_) -> n = view) with
-            | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
-            | (_, hydrateView) :: _ ->
-                let view = hydrateView history
-                return! (toJson view) ctx
-        })
-        // GET /{resource}/{id}
-        GET >=> pathScan path (fun id ctx -> async {
-          let! state = service.Read id
-          return! toJson state ctx
-        })
-        // POST /{resource}/{id}
-        POST >=> pathScan path (fun id ctx -> async {
-            match deserialize<'Command> ctx.request.rawForm with
-            | Error msg -> return! BAD_REQUEST msg ctx
-            | Ok cmd ->
-                try
-                    do! service.Execute id cmd
-                    let! state = service.Read id
-                    return! (toJson state) ctx
-                with ex -> return! CONFLICT ex.Message ctx
-        })
-      ]
+      let streamProjections, categoryProjections = partition cfg.projections
+      let categoryRoutes =
+        match cfg.categoryViewPath with
+        | Some categoryViewPath ->
+            [ GET >=> pathScan categoryViewPath (fun view ctx -> async {
+                match categoryProjections |> List.filter (fun (n,_) -> n = view) with
+                | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
+                | (_, hydrateView) :: _ ->
+                    let events = cfg.service.LoadCategory()
+                    let v = hydrateView events
+                    return! (toJson v) ctx
+            }) ]
+        | None -> []
+      let perStreamRoutes =
+        [ GET >=> pathScan cfg.viewPath (fun (id,view) ctx -> async {
+              let key = FsCodec.StreamName.compose cfg.category [| id |]
+              let history = cfg.service.Load key
+              match streamProjections |> List.filter (fun (n,_) -> n = view) with
+              | [] -> return! BAD_REQUEST $"No view named '{view}'" ctx
+              | (_, hydrateView) :: _ ->
+                  let view = hydrateView history
+                  return! (toJson view) ctx
+          })
+          // GET /{resource}/{id}
+          GET >=> pathScan cfg.path (fun id ctx -> async {
+            let! state = cfg.service.Read id
+            return! toJson state ctx
+          })
+          // POST /{resource}/{id}
+          POST >=> pathScan cfg.path (fun id ctx -> async {
+              match deserialize<'Command> ctx.request.rawForm with
+              | Error msg -> return! BAD_REQUEST msg ctx
+              | Ok cmd ->
+                  try
+                      do! cfg.service.Execute id cmd
+                      let! state = cfg.service.Read id
+                      return! (toJson state) ctx
+                  with ex -> return! CONFLICT ex.Message ctx
+          }) ]
+      choose (categoryRoutes @ perStreamRoutes)

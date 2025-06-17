@@ -125,20 +125,13 @@ let main _ =
         supplierService.Subscribe (fun name events -> printfn "%A" (name, events))
 
     let inventoryApp =
-        GenericResource.configure
-            "Inventory"
-            "/inventory/%s"
-            "/inventory/%s/%s"
-            inventoryService
+        GenericResource.ResourceConfig.create "Inventory" "/inventory/%s" "/inventory/%s/%s" inventoryService
             [ GenericResource.box "stock" (ViewPattern.StreamProjection stockProjection) ]
+        |> GenericResource.configure
 
     let supplierApp =
-        GenericResource.configure
-            "Supplier"
-            "/supplier/%s"
-            "/supplier/%s/%s"
-            supplierService
-            []
+        GenericResource.ResourceConfig.create "Supplier" "/supplier/%s" "/supplier/%s/%s" supplierService []
+        |> GenericResource.configure
 
     let app = choose [ inventoryApp; supplierApp ]
 

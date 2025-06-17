@@ -65,20 +65,14 @@ let main _ =
         mirrorService.Subscribe (fun name events -> printfn "%A" (name, events))
 
     let counterApp =
-        GenericResource.configure
-            "Counter"
-            "/counters/%s"
-            "/counters/%s/%s"
-            counterService
+        GenericResource.ResourceConfig.create "Counter" "/counters/%s" "/counters/%s/%s" counterService
             [ GenericResource.box "count" (ViewPattern.StreamProjection countProjection) ]
+        |> GenericResource.configure
 
     let mirrorApp =
-        GenericResource.configure
-            "Mirror"
-            "/mirror/%s"
-            "/mirror/%s/%s"
-            mirrorService
+        GenericResource.ResourceConfig.create "Mirror" "/mirror/%s" "/mirror/%s/%s" mirrorService
             [ GenericResource.box "count" (ViewPattern.StreamProjection countProjection) ]
+        |> GenericResource.configure
 
     let app = choose [ counterApp; mirrorApp ]
 

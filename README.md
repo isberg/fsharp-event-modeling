@@ -69,12 +69,8 @@ let main _ =
     let _ : System.IDisposable =
         service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =
-        GenericResource.configure
-            "Counter"
-            "/counters/%s"
-            "/counters/%s/%s"
-            service
-            []
+        GenericResource.ResourceConfig.create "Counter" "/counters/%s" "/counters/%s/%s" service []
+        |> GenericResource.configure
     Suave.Web.startWebServer Suave.Web.defaultConfig app
     0
 ```
