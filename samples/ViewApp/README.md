@@ -1,6 +1,6 @@
 # ViewApp Sample
 
-This sample builds on the basic counter domain and demonstrates the **View Pattern**. It exposes two projections via HTTP using `GenericResource.configure`:
+This sample builds on the basic counter domain and demonstrates the **View Pattern**. It exposes two projections via HTTP using `GenericResource.configure` with a `ResourceConfig`:
 
 - `count` – the current numeric value of the counter
 - `history` – the full list of events applied to the counter
