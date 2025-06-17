@@ -68,8 +68,8 @@ let main _ =
             "/counters/%s/%s"
             "/counters/%s"
             service
-            [ GenericResource.boxedStream "count" countProjection
-              GenericResource.boxedCategory "total" totalProjection
-              GenericResource.boxedCategory "all" allCountsProjection ]
+            [ GenericResource.box "count" (ViewPattern.StreamProjection countProjection)
+              GenericResource.box "total" (ViewPattern.CategoryProjection totalProjection)
+              GenericResource.box "all" (ViewPattern.CategoryProjection allCountsProjection) ]
     Suave.Web.startWebServer Suave.Web.defaultConfig app
     0
