@@ -27,12 +27,12 @@ let toJson (data: 'T) : WebPart =
     >=> OK (JsonSerializer.Serialize(data, jsonOptions))
 
 /// Box a projection so heterogeneous view types can be used together
-let boxProjection name (projection: ViewPattern.ProjectionSpec<'View,'Event>) :
+let private boxProjection name (projection: ViewPattern.ProjectionSpec<'View,'Event>) :
     string * ('Event list -> obj) =
     name, fun events -> ViewPattern.hydrate projection events |> box
 
 /// Box a category projection operating over multiple streams
-let boxCategoryProjection name (projection: ViewPattern.ProjectionSpec<'View, ViewPattern.StreamEvent<'Event>>) :
+let private boxCategoryProjection name (projection: ViewPattern.ProjectionSpec<'View, ViewPattern.StreamEvent<'Event>>) :
     string * (ViewPattern.StreamEvent<'Event> list -> obj) =
     name, fun events -> ViewPattern.hydrate projection events |> box
 
@@ -41,15 +41,23 @@ type BoxedProjection<'Event> =
     | StreamProjection of string * ('Event list -> obj)
     | CategoryProjection of string * (ViewPattern.StreamEvent<'Event> list -> obj)
 
+/// Box a typed projection under a given view name
+let box name (projection: ViewPattern.Projection<'View,'Event>) : BoxedProjection<'Event> =
+    match projection with
+    | ViewPattern.StreamProjection spec ->
+        let n, f = boxProjection name spec
+        StreamProjection (n, f)
+    | ViewPattern.CategoryProjection spec ->
+        let n, f = boxCategoryProjection name spec
+        CategoryProjection (n, f)
+
 /// Helper to wrap a stream projection into a scoped one
 let boxedStream name projection =
-    let n, f = boxProjection name projection
-    StreamProjection (n, f)
+    box name (ViewPattern.StreamProjection projection)
 
 /// Helper to wrap a category projection into a scoped one
 let boxedCategory name projection =
-    let n, f = boxCategoryProjection name projection
-    CategoryProjection (n, f)
+    box name (ViewPattern.CategoryProjection projection)
 
 let private partition (projections: BoxedProjection<'Event> list) :
     (string * ('Event list -> obj)) list * (string * (ViewPattern.StreamEvent<'Event> list -> obj)) list =
