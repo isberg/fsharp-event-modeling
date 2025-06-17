@@ -12,9 +12,11 @@ type StreamEvent<'Event> = {
 }
 
 /// Distinguishes between per-stream and category-level projections
+/// Identify whether a projection operates over a single stream or an entire category
+/// The projection specification itself does not carry a view name
 type Projection<'View,'Event> =
-    | StreamProjection of string * ProjectionSpec<'View,'Event>
-    | CategoryProjection of string * ProjectionSpec<'View, StreamEvent<'Event>>
+    | StreamProjection of ProjectionSpec<'View,'Event>
+    | CategoryProjection of ProjectionSpec<'View, StreamEvent<'Event>>
 
 let replay = List.fold
 
