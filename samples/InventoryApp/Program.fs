@@ -130,7 +130,7 @@ let main _ =
             "/inventory/%s"
             "/inventory/%s/%s"
             inventoryService
-            [ GenericResource.boxedStream "stock" stockProjection ]
+            [ GenericResource.box "stock" (ViewPattern.StreamProjection stockProjection) ]
 
     let supplierApp =
         GenericResource.configure

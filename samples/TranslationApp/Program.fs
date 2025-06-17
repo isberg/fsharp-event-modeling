@@ -70,7 +70,7 @@ let main _ =
             "/counters/%s"
             "/counters/%s/%s"
             counterService
-            [ GenericResource.boxedStream "count" countProjection ]
+            [ GenericResource.box "count" (ViewPattern.StreamProjection countProjection) ]
 
     let mirrorApp =
         GenericResource.configure
@@ -78,7 +78,7 @@ let main _ =
             "/mirror/%s"
             "/mirror/%s/%s"
             mirrorService
-            [ GenericResource.boxedStream "count" countProjection ]
+            [ GenericResource.box "count" (ViewPattern.StreamProjection countProjection) ]
 
     let app = choose [ counterApp; mirrorApp ]
 
