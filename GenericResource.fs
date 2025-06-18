@@ -7,6 +7,7 @@ open Suave.Operators
 open Suave.Successful
 open Suave.RequestErrors
 open Suave.Writers
+open System
 open System.Text.Json
 open System.Text.Json.Serialization
 open FsCodec.SystemTextJson
@@ -84,17 +85,61 @@ type ResourceConfig<'State,'Command,'Event> =
       categoryViewPath : PrintfFormat<string -> WebPart, unit, string, WebPart, string> option }
 
 module ResourceConfig =
-    /// Start a configuration with required fields
-    let create category path viewPath service projections : ResourceConfig<_,_,_> =
+    /// Start a configuration with defaults for optional fields
+    let create (category: string) (service: Service<'State,'Command,'Event>) : ResourceConfig<_,_,_> =
+        let plural =
+            if category.EndsWith "s" then category
+            elif category.EndsWith "y" then category.Substring(0, category.Length - 1) + "ies"
+            else category + "s"
+        let lower = plural.ToLowerInvariant()
+        let path = PrintfFormat<string -> WebPart, unit, string, WebPart, string>(sprintf "/%s/%%s" lower)
+        let viewPath =
+            PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string>(sprintf "/%s/%%s/%%s" lower)
+        { category = category
+          path = path
+          viewPath = viewPath
+          service = service
+          projections = []
+          categoryViewPath = None }
+
+    /// Set the route to use when loading a stream
+    let withPath
+        (p: PrintfFormat<string -> WebPart, unit, string, WebPart, string>)
+        (config: ResourceConfig<'State,'Command,'Event>) : ResourceConfig<'State,'Command,'Event> =
+        { config with path = p }
+
+    /// Set the route to use when loading a projection
+    let withViewPath
+        (p: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string>)
+        (config: ResourceConfig<'State,'Command,'Event>) : ResourceConfig<'State,'Command,'Event> =
+        { config with viewPath = p }
+
+    /// Provide projections for this resource
+    let withProjections
+        (projections: BoxedProjection<'Event> list)
+        (config: ResourceConfig<'State,'Command,'Event>) : ResourceConfig<'State,'Command,'Event> =
+        { config with projections = projections }
+
+    /// Specify a route for category-level projections
+    let withCategoryViewPath
+        (p: PrintfFormat<string -> WebPart, unit, string, WebPart, string>)
+        (config: ResourceConfig<'State,'Command,'Event>) : ResourceConfig<'State,'Command,'Event> =
+        { config with categoryViewPath = Some p }
+
+    /// Build a configuration by explicitly providing all parameters
+    let createExplicit
+        (category: string)
+        (path: PrintfFormat<string -> WebPart, unit, string, WebPart, string>)
+        (viewPath: PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string>)
+        (service: Service<'State,'Command,'Event>)
+        (projections: BoxedProjection<'Event> list)
+        : ResourceConfig<'State,'Command,'Event> =
         { category = category
           path = path
           viewPath = viewPath
           service = service
           projections = projections
           categoryViewPath = None }
-
-    /// Specify a route for category-level projections
-    let withCategoryViewPath p config = { config with categoryViewPath = Some p }
 
 /// Configure routes for a resource, optionally enabling category-level projections
 let configure<'State,'Command,'Event>
