@@ -126,15 +126,11 @@ let main _ =
 
     let inventoryApp =
         GenericResource.ResourceConfig.create "Inventory" inventoryService
-        |> GenericResource.ResourceConfig.withPath (PrintfFormat<string -> WebPart, unit, string, WebPart, string> "/inventory/%s")
-        |> GenericResource.ResourceConfig.withViewPath (PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> "/inventory/%s/%s")
         |> GenericResource.ResourceConfig.withProjections [ GenericResource.box "stock" (ViewPattern.StreamProjection stockProjection) ]
         |> GenericResource.configure
 
     let supplierApp =
         GenericResource.ResourceConfig.create "Supplier" supplierService
-        |> GenericResource.ResourceConfig.withPath (PrintfFormat<string -> WebPart, unit, string, WebPart, string> "/supplier/%s")
-        |> GenericResource.ResourceConfig.withViewPath (PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> "/supplier/%s/%s")
         |> GenericResource.configure
 
     let app = choose [ inventoryApp; supplierApp ]

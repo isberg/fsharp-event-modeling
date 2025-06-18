@@ -71,8 +71,6 @@ let main _ =
 
     let mirrorApp =
         GenericResource.ResourceConfig.create "Mirror" mirrorService
-        |> GenericResource.ResourceConfig.withPath (PrintfFormat<string -> WebPart, unit, string, WebPart, string> "/mirror/%s")
-        |> GenericResource.ResourceConfig.withViewPath (PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> "/mirror/%s/%s")
         |> GenericResource.ResourceConfig.withProjections [ GenericResource.box "count" (ViewPattern.StreamProjection countProjection) ]
         |> GenericResource.configure
 
