@@ -6,6 +6,13 @@ open ViewPattern
 open AutomationPattern
 open TranslationPattern
 open Service
+open GenericResource
+open Suave
+open System.Net.Http
+open System.Net
+open System.Net.Sockets
+open System.Text
+open System.Text.Json
 
 // Domain types and decider as in README
 
@@ -214,6 +221,59 @@ let automationServiceTests =
         let state = Async.RunSynchronously <| service.Read "1"
         Expect.equal state (Succ Zero) "State should reflect automation command"
 
+[<Tests>]
+let webResourceTests =
+    let configureService () =
+        Service.ServiceConfig.create "Counter"
+        |> Service.createServiceWith counterDecider
+
+    let configureApp service =
+        GenericResource.ResourceConfig.create "Counter" "/counters/%s" "/counters/%s/%s" service
+            [ GenericResource.boxedStream "count" countProjection ]
+        |> GenericResource.configure
+
+    let getFreeTcpPort () =
+        let listener = new TcpListener(IPAddress.Loopback, 0)
+        listener.Start()
+        let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+        listener.Stop()
+        port
+
+    let runWithServer app test = async {
+        let port = getFreeTcpPort ()
+        use cts = new System.Threading.CancellationTokenSource()
+        let binding = Suave.Http.HttpBinding.createSimple Suave.Http.Protocol.HTTP "127.0.0.1" port
+        let conf = { Suave.Web.defaultConfig with bindings = [ binding ]; cancellationToken = cts.Token }
+        let listening, server = Suave.Web.startWebServerAsync conf app
+        Async.Start(server, cts.Token)
+        let! _ = listening
+        try
+            do! test (sprintf "http://127.0.0.1:%d" port)
+        finally
+            cts.Cancel()
+    }
+
+    testCaseAsync "commands update state via HTTP" <| async {
+        let service = configureService ()
+        let app = configureApp service
+        do! runWithServer app (fun baseUrl -> async {
+            use client = new HttpClient()
+            let content = new StringContent("\"Increment\"", Encoding.UTF8, "application/json")
+            let! postResp = client.PostAsync(baseUrl + "/counters/1", content) |> Async.AwaitTask
+            postResp.EnsureSuccessStatusCode() |> ignore
+
+            let! getResp = client.GetAsync(baseUrl + "/counters/1") |> Async.AwaitTask
+            let! stateJson = getResp.Content.ReadAsStringAsync() |> Async.AwaitTask
+            let state = JsonSerializer.Deserialize<State>(stateJson, GenericResource.jsonOptions)
+            Expect.equal state (Succ Zero) "State updated"
+
+            let! countResp = client.GetAsync(baseUrl + "/counters/1/count") |> Async.AwaitTask
+            let! countJson = countResp.Content.ReadAsStringAsync() |> Async.AwaitTask
+            let count = JsonSerializer.Deserialize<int>(countJson, GenericResource.jsonOptions)
+            Expect.equal count 1 "View projection returned"
+        })
+    }
+
 [<EntryPoint>]
 let main args =
-    runTestsInAssembly defaultConfig args
+    runTestsInAssembly Expecto.Tests.defaultConfig args
