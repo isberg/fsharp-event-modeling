@@ -63,14 +63,11 @@ let main _ =
     let _ : IDisposable = service.Subscribe (fun name events -> printfn "%A" (name, events))
     let app =
         GenericResource.ResourceConfig.create "Counter" service
-        |> GenericResource.ResourceConfig.withPath (PrintfFormat<string -> WebPart, unit, string, WebPart, string> "/counter/%s")
-        |> GenericResource.ResourceConfig.withViewPath (PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string> "/counters/%s/%s")
         |> GenericResource.ResourceConfig.withProjections [
             GenericResource.box "count" (ViewPattern.StreamProjection countProjection)
             GenericResource.box "total" (ViewPattern.CategoryProjection totalProjection)
             GenericResource.box "all" (ViewPattern.CategoryProjection allCountsProjection)
           ]
-        |> GenericResource.ResourceConfig.withCategoryViewPath "/counters/%s"
         |> GenericResource.configure
     Suave.Web.startWebServer Suave.Web.defaultConfig app
     0

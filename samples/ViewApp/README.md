@@ -15,11 +15,11 @@ Then retrieve views, for example:
 
 ```bash
 # send a command
-curl localhost:8080/counters/1 -d '"Increment"'
+curl localhost:8080/counter/1 -d '"Increment"'
 
 # view the current count
-curl localhost:8080/counters/1/count
+curl localhost:8080/counter/1/count
 
 # view event history
-curl localhost:8080/counters/1/history
+curl localhost:8080/counter/1/history
 ```

@@ -77,9 +77,9 @@ let main _ =
 
 ### Test run your API
 
-Post the Increment command to counter 1: `curl localhost:8080/counters/1 -d '"Increment"'`
+Post the Increment command to counter 1: `curl localhost:8080/counter/1 -d '"Increment"'`
 
-Get the current state of counter 1: `curl localhost:8080/counters/1`
+Get the current state of counter 1: `curl localhost:8080/counter/1`
 
 ### Running the CounterApp sample
 

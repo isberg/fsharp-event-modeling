@@ -15,13 +15,13 @@ Try the following commands:
 
 ```bash
 # increment the main counter
-curl localhost:8080/counters/1 -d '"Increment"'
+curl localhost:8080/counter/1 -d '"Increment"'
 
 # the mirror service has also incremented
 curl localhost:8080/mirror/1/count
 
 # decrement only affects the main counter
-curl localhost:8080/counters/1 -d '"Decrement"'
+curl localhost:8080/counter/1 -d '"Decrement"'
 
 # mirror count remains 1
 curl localhost:8080/mirror/1/count

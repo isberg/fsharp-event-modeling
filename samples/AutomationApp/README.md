@@ -14,11 +14,11 @@ Try the following sequence of commands:
 
 ```bash
 # increment to 1
-curl localhost:8080/counters/1 -d '"Increment"'
+curl localhost:8080/counter/1 -d '"Increment"'
 
 # decrement back to 0 – automation immediately increments again
-curl localhost:8080/counters/1 -d '"Decrement"'
+curl localhost:8080/counter/1 -d '"Decrement"'
 
 # inspect the current count (should be 1)
-curl localhost:8080/counters/1/count
+curl localhost:8080/counter/1/count
 ```

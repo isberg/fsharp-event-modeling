@@ -91,16 +91,19 @@ module ResourceConfig =
             if category.EndsWith "s" then category
             elif category.EndsWith "y" then category.Substring(0, category.Length - 1) + "ies"
             else category + "s"
-        let lower = plural.ToLowerInvariant()
-        let path = PrintfFormat<string -> WebPart, unit, string, WebPart, string>(sprintf "/%s/%%s" lower)
+        let lowerPlural = plural.ToLowerInvariant()
+        let lowerSingular = category.ToLowerInvariant()
+        let path = PrintfFormat<string -> WebPart, unit, string, WebPart, string>(sprintf "/%s/%%s" lowerSingular)
         let viewPath =
-            PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string>(sprintf "/%s/%%s/%%s" lower)
+            PrintfFormat<string -> string -> WebPart, unit, string, WebPart, string * string>(sprintf "/%s/%%s/%%s" lowerSingular)
+        let categoryViewPath =
+            PrintfFormat<string -> WebPart, unit, string, WebPart, string>(sprintf "/%s/%%s" lowerPlural)
         { category = category
           path = path
           viewPath = viewPath
           service = service
           projections = []
-          categoryViewPath = None }
+          categoryViewPath = Some categoryViewPath }
 
     /// Set the route to use when loading a stream
     let withPath
