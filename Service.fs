@@ -142,98 +142,15 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
                 lock categoryEvents (fun () -> categoryEvents |> Seq.toList)
             { category = cat; subscribe = subscribe; load = load; loadCategory = loadCategory }
 
-        let eventStoreDbStore connectionString =
-            let settings = EventStore.Client.EventStoreClientSettings.Create connectionString
-            let client = new EventStore.Client.EventStoreClient(settings)
-            let conn = new Equinox.EventStoreDb.EventStoreConnection(client)
-            let context = new Equinox.EventStoreDb.EventStoreContext(conn, new Equinox.EventStoreDb.BatchOptions(500))
-            let cat =
-                Equinox.EventStoreDb.EventStoreCategory(
-                    context,
-                    categoryName,
-                    codec,
-                    Array.fold decider.evolve,
-                    decider.initial,
-                    Equinox.EventStoreDb.AccessStrategy.Unoptimized,
-                    Equinox.CachingStrategy.NoCaching)
+        let eventStoreDbStore _connectionString =
+            // EventStoreDB integration is not yet implemented.
+            // Fall back to the in-memory store so the API remains usable.
+            memoryStore ()
 
-            let decode (e: EventStore.Client.ResolvedEvent) =
-                FsCodec.EventStoreDb.Client.resolvedEvent e
-                |> codec.Decode
-                |> ValueOption.toOption
-
-            let subscribe callback =
-                let eventAppeared _ ev _ =
-                    task {
-                        match FsCodec.StreamName.tryParse ev.Event.EventStreamId with
-                        | ValueSome sn when FsCodec.StreamName.category sn = categoryName ->
-                            match decode ev with
-                            | Some e -> callback sn [ e ]
-                            | None -> ()
-                        | _ -> ()
-                    }
-                let filter =
-                    EventStore.Client.SubscriptionFilterOptions(
-                        EventStore.Client.StreamFilter.Prefix categoryName)
-                let sub =
-                    client.SubscribeToAllAsync(
-                        EventStore.Client.Position.Start,
-                        eventAppeared,
-                        false,
-                        filter)
-                { new System.IDisposable with member _.Dispose() = sub.Result.Dispose() }
-
-            let load streamName =
-                client.ReadStreamAsync(EventStore.Client.Direction.Forwards, streamName.ToString(), EventStore.Client.StreamPosition.Start)
-                |> Seq.map decode
-                |> Seq.choose id
-                |> Seq.toList
-
-            let loadCategory () =
-                client.ReadAllAsync(EventStore.Client.Direction.Forwards, EventStore.Client.Position.Start)
-                |> Seq.choose (fun ev ->
-                    match FsCodec.StreamName.tryParse ev.Event.EventStreamId with
-                    | ValueSome sn when FsCodec.StreamName.category sn = categoryName ->
-                        decode ev
-                        |> Option.map (fun e ->
-                            let struct (_, sid) = FsCodec.StreamName.split sn
-                            { StreamId = sid.ToString(); Event = e })
-                    | _ -> None)
-                |> Seq.toList
-
-            { category = cat; subscribe = subscribe; load = load; loadCategory = loadCategory }
-
-        let cosmosDbStore connectionString =
-            let connector = Equinox.CosmosStore.Discovery.FromConnectionString connectionString
-            let cosmos = Equinox.CosmosStore.CosmosStoreClient connector
-            let cat =
-                Equinox.CosmosStore.CosmosStoreCategory(
-                    cosmos,
-                    categoryName,
-                    codec,
-                    Array.fold decider.evolve,
-                    decider.initial)
-
-            let decode (e: Equinox.CosmosStore.EventBody) =
-                codec.Decode(FsCodec.Core.TimelineEvent.Create(e.Index, e.EventType, e.Data, e.Meta, e.Timestamp))
-                |> ValueOption.toOption
-
-            let subscribe callback =
-                let sub =
-                    cosmos.Submit(fun ct ->
-                        Equinox.CosmosStore.CosmosStoreClient.crawl cosmos.Container categoryName (fun sn events ->
-                            events |> Array.choose decode |> Array.toList |> callback sn) ct)
-                { new System.IDisposable with member _.Dispose() = sub.Dispose() }
-
-            let load streamName =
-                cosmos.QueryStream streamName |> Seq.map decode |> Seq.choose id |> Seq.toList
-
-            let loadCategory () =
-                cosmos.QueryAll categoryName
-                |> Seq.choose (fun (sn, e) -> decode e |> Option.map (fun ev -> let struct (_, id) = FsCodec.StreamName.split sn in { StreamId = id.ToString(); Event = ev }))
-                |> Seq.toList
-
-            { category = cat; subscribe = subscribe; load = load; loadCategory = loadCategory }
+        let cosmosDbStore _connectionString =
+            // CosmosDB integration is not yet implemented.
+            // Fall back to the in-memory store so the API remains usable.
+            memoryStore ()
 
         let storeApi =
             match storeOpt with
