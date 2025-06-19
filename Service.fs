@@ -164,13 +164,14 @@ let createService<'View,'State,'Command,'Event,'TState,'TCommand,'TEvent,'TView
 
             let subscribe callback =
                 let eventAppeared _ ev _ =
-                    match FsCodec.StreamName.tryParse ev.Event.EventStreamId with
-                    | ValueSome sn when FsCodec.StreamName.category sn = categoryName ->
-                        match decode ev with
-                        | Some e -> callback sn [ e ]
-                        | None -> ()
-                    | _ -> ()
-                    System.Threading.Tasks.Task.CompletedTask
+                    task {
+                        match FsCodec.StreamName.tryParse ev.Event.EventStreamId with
+                        | ValueSome sn when FsCodec.StreamName.category sn = categoryName ->
+                            match decode ev with
+                            | Some e -> callback sn [ e ]
+                            | None -> ()
+                        | _ -> ()
+                    }
                 let filter =
                     EventStore.Client.SubscriptionFilterOptions(
                         EventStore.Client.StreamFilter.Prefix categoryName)
