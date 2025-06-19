@@ -140,7 +140,7 @@ project file, for example:
 
 ```xml
 <PackageReference Include="Equinox.EventStoreDb" Version="4.0.0" />
-<PackageReference Include="EventStore.Client" Version="21.10.2" />
+<PackageReference Include="EventStore.Client" Version="22.0.0" />
 <PackageReference Include="Equinox.CosmosStore" Version="4.0.0" />
 <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.36.0" />
 ```
