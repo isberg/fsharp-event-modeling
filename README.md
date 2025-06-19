@@ -127,3 +127,48 @@ Run `dotnet run --project samples/InventoryApp/InventoryApp.fsproj` to start a m
 ### Running the CategoryApp sample
 
 Run `dotnet run --project samples/CategoryApp/CategoryApp.fsproj` to start a service exposing category-level views across all counters.
+
+### Substituting a persistent Equinox store
+
+`Service.createService` and `Service.createServiceWith` set up an in-memory
+`Equinox.MemoryStore` so the samples run without infrastructure. The memory
+store and category are instantiated around
+[Service.fs lines 92–128](Service.fs#L92-L128).
+
+To persist events simply reference another Equinox store implementation in your
+project file, for example:
+
+```xml
+<PackageReference Include="Equinox.CosmosStore" Version="4.0.0" />
+<PackageReference Include="Microsoft.Azure.Cosmos" Version="3.36.0" />
+```
+
+Then create a store and inject it when building the service:
+
+```fsharp
+let connector =
+    Equinox.CosmosStore.Discovery.FromConnectionString "<connection-string>"
+let cosmos = Equinox.CosmosStore.CosmosStoreClient connector
+let cat =
+    Equinox.CosmosStore.CosmosStoreCategory(
+        cosmos,
+        categoryName,
+        codec,
+        Array.fold decider.evolve,
+        decider.initial)
+
+let store =
+    { category = cat
+      subscribe = (fun _ -> { new System.IDisposable with member _.Dispose() = () })
+      load = fun _ -> []
+      loadCategory = fun () -> [] }
+```
+
+Supply this store via `Service.ServiceConfig.withStore`:
+
+```fsharp
+let service =
+    Service.ServiceConfig.create categoryName
+    |> Service.ServiceConfig.withStore store
+    |> Service.createServiceWith decider
+```
