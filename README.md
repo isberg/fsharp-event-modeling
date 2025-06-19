@@ -139,36 +139,22 @@ To persist events simply reference another Equinox store implementation in your
 project file, for example:
 
 ```xml
+<PackageReference Include="Equinox.EventStoreDb" Version="4.0.0" />
+<PackageReference Include="EventStore.Client" Version="21.10.2" />
 <PackageReference Include="Equinox.CosmosStore" Version="4.0.0" />
 <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.36.0" />
 ```
 
-Then create a store and inject it when building the service:
-
-```fsharp
-let connector =
-    Equinox.CosmosStore.Discovery.FromConnectionString "<connection-string>"
-let cosmos = Equinox.CosmosStore.CosmosStoreClient connector
-let cat =
-    Equinox.CosmosStore.CosmosStoreCategory(
-        cosmos,
-        categoryName,
-        codec,
-        Array.fold decider.evolve,
-        decider.initial)
-
-let store =
-    { category = cat
-      subscribe = (fun _ -> { new System.IDisposable with member _.Dispose() = () })
-      load = fun _ -> []
-      loadCategory = fun () -> [] }
-```
-
-Supply this store via `Service.ServiceConfig.withStore`:
+Then select the backing store when building the service:
 
 ```fsharp
 let service =
     Service.ServiceConfig.create categoryName
-    |> Service.ServiceConfig.withStore store
+    |> Service.ServiceConfig.withEventStoreDB "<esdb-connection-string>"
+    |> Service.createServiceWith decider
+
+let cosmosService =
+    Service.ServiceConfig.create categoryName
+    |> Service.ServiceConfig.withCosmosDB "<cosmos-connection-string>"
     |> Service.createServiceWith decider
 ```
