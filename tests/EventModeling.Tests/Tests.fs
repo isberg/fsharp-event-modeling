@@ -137,9 +137,9 @@ let serviceTranslationTests =
             | _ -> None }
     testCase "service translates events into commands" <| fun _ ->
         let mirrorService =
-            Service.createService counterDecider "Mirror" None None Service.defaultStreamId
+            Service.createService counterDecider "Mirror" None None Service.defaultStreamId None
         let counterService =
-            Service.createService counterDecider "Counter" None (Some (translator, mirrorService)) Service.defaultStreamId
+            Service.createService counterDecider "Counter" None (Some (translator, mirrorService)) Service.defaultStreamId None
         Async.RunSynchronously <| counterService.Execute "a" Increment
         let events =
             FsCodec.StreamName.compose "Mirror" [| "a" |]
